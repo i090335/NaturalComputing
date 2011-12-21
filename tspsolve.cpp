@@ -1,6 +1,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -55,8 +56,9 @@ class TSPSolver{
   public:
     TSPSolver(string filename);
     int calcAscendingCost(int begin);
-    int calcRandomCost();
     int getDimension();
+    vector<int> calcMinimumRandomRoute(int max, int* minp);
+    vector<Point*> getPoints();
 };
 
 TSPSolver::TSPSolver(string filename) {
@@ -114,6 +116,10 @@ int** TSPSolver::createMatrix(vector<Point*> points){
   return matrix;
 }
 
+vector<Point*> TSPSolver::getPoints() {
+  return points_;
+}
+
 int TSPSolver::calcAscendingCost(int begin) {
   int current = begin;
   int sum = 0;
@@ -126,23 +132,32 @@ int TSPSolver::calcAscendingCost(int begin) {
   return sum;
 }
 
-int TSPSolver::calcRandomCost() {
+vector<int> TSPSolver::calcMinimumRandomRoute(int max, int* minp) {
   vector<int> order;
-  for(int i = 0; i < dimension_; ++i) order.push_back(i);
+  vector<int> *minRoute;
   MersenneTwister* mt = new MersenneTwister();
-  random_shuffle(order.begin(), order.end(), *mt);
-  delete mt;
-  int sum = 0;
-  Point* currentPoint;
-  Point* nextPoint;
-  for(int i = 0; i < dimension_; ++i) {
-    int p = order[i];
-    int next = order[(i + 1) % dimension_];
-    currentPoint = points_[p];
-    nextPoint = points_[next];
-    sum += currentPoint->calcDistance(nextPoint);
+  int min = INT_MAX;
+  for(int n = 0; n < max; ++n) {
+    for(int i = 0; i < dimension_; ++i) order.push_back(i);
+    random_shuffle(order.begin(), order.end(), *mt);
+    int cost = 0;
+    Point* currentPoint;
+    Point* nextPoint;
+    for(int i = 0; i < dimension_; ++i) {
+      int p = order.at(i);
+      int next = order.at((i + 1) % dimension_);
+      currentPoint = points_[p];
+      nextPoint = points_[next];
+      cost += currentPoint->calcDistance(nextPoint);
+    }
+    if(cost < min) {
+        min = cost;
+        minRoute = &order;
+    }
   }
-  return sum;
+  delete mt;
+  *minp = min;
+  return *minRoute;
 }
 
 
@@ -168,15 +183,18 @@ int main( int argc, char *argv[] ){
   TSPSolver* solver = new TSPSolver(*filename);
   cout << "N : " << endl;
   cin >> n;
-  int min = INT_MAX;
-  for(int i = 0; i < n; ++i) {
-    int cost = solver->calcRandomCost();
-    if(cost < min) {
-      min = cost;
-    }
+  int min;
+  vector<int> minRoute = solver->calcMinimumRandomRoute(n, &min);
+  ostringstream output;
+  output << "random-" << n << ".dat";
+  ofstream ofs(output.str().c_str());
+  cout << "minimumCost : " << min << endl;
+  ofs << "minimumCost : " << min << endl;
+  for(int i = 0; i < solver->getDimension(); ++i) {
+    Point* p = solver->getPoints()[minRoute[i]];
+    cout << minRoute[i] << ", " << p->getX() << ", " << p->getY() << endl;
+    ofs << minRoute[i] << ", " << p->getX() << ", " << p->getY() << endl;
   }
-  cout << min << endl;
-
   delete filename;
   delete solver;
   fclose( fp );
