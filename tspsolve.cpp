@@ -8,41 +8,43 @@ using namespace std;
 
 class Point{
   private:
-    float x_;
-    float y_;
+    int x_;
+    int y_;
   public:
-    Point(float x, float y);
-    float calcDistance(Point* p);
-    float getX();
-    float getY();
+    Point(int x, int y);
+    int calcDistance(Point* p);
+    int getX();
+    int getY();
 };
 
-Point::Point(float x, float y){
+Point::Point(int x, int y){
   x_ = x;
   y_ = y;
 }
 
-float Point::calcDistance(Point* p){
-  return hypot(p->getX() - x_, p->getY() - y_);
+int Point::calcDistance(Point* p){
+  return round(hypot(p->getX() - x_, p->getY() - y_));
 }
 
-float Point::getX(){
+int Point::getX(){
   return x_;
 }
 
-float Point::getY(){
+int Point::getY(){
   return y_;
 }
 
 class TSPSolver{
   private:
     int dimension_;
-    float** matrix_;
-    vector<Point*> loadPoints(string filename, int dimention);
-    float** createMatrix(vector<Point*> points);
+    int** matrix_;
+    vector<Point*> loadPoints(string filename, int dimension);
+    int** createMatrix(vector<Point*> points);
 
   public:
     TSPSolver(string filename);
+    int calcAscendingCost(int begin);
+    int getDimension();
 };
 
 TSPSolver::TSPSolver(string filename) {
@@ -79,27 +81,42 @@ vector<Point*> TSPSolver::loadPoints(string filename, int dimension){
     int x = atoi(temp.c_str());
     ifs >> temp;
     int y = atoi(temp.c_str());
-    Point* p = new Point((float)x, (float)y);
+    Point* p = new Point((int)x, (int)y);
     points.push_back(p);
   }
   return points;
 }
 
-float** TSPSolver::createMatrix(vector<Point*> points){
+int** TSPSolver::createMatrix(vector<Point*> points){
   int dimension = points.size();
-  float** matrix = new float*[dimension];
+  int** matrix = new int*[dimension];
   for(int i = 0; i < dimension; ++i) {
-    matrix[i] = new float[dimension];
+    matrix[i] = new int[dimension];
   }
   for(int i = 0; i < dimension; ++i) {
     for(int j = i; j < dimension; ++j) {
-      float distance = points[i]->calcDistance(points[j]);
-      cout << distance << endl;
+      int distance = points[i]->calcDistance(points[j]);
       matrix[i][j] = distance;
       matrix[j][i] = distance;
     }
   }
   return matrix;
+}
+
+int TSPSolver::calcAscendingCost(int begin) {
+  int current = begin;
+  int sum = 0;
+  int next;
+  do {
+    next = (current + 1) % dimension_;
+    sum += matrix_[current][next];
+    current = next;
+  } while(current != begin);
+  return sum;
+}
+
+int TSPSolver::getDimension() {
+  return dimension_;
 }
 
 int main( int argc, char *argv[] ){
@@ -115,7 +132,13 @@ int main( int argc, char *argv[] ){
     exit( 1 );
   }
   string* filename = new string(argv[1]);
-  new TSPSolver(*filename);
+  TSPSolver* solver = new TSPSolver(*filename);
+  int d = solver->getDimension();
+  for(int i = 0; i < d; ++i) {
+    int cost = solver->calcAscendingCost(i);
+    cout << i << ", " << cost << endl;
+  }
   delete filename;
+  delete solver;
   fclose( fp );
 }
