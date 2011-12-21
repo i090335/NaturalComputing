@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+
 using namespace std;
 
 class Point{
@@ -22,7 +23,7 @@ Point::Point(float x, float y){
 }
 
 float Point::calcDistance(Point* p){
-  hypot(p->getX() - x_, p->getY() - y_);
+  return hypot(p->getX() - x_, p->getY() - y_);
 }
 
 float Point::getX(){
@@ -36,12 +37,12 @@ float Point::getY(){
 class TSPSolver{
   private:
     int dimension_;
-    vector< vector<double> > matrix_;
+    float** matrix_;
     vector<Point*> loadPoints(string filename, int dimention);
+    float** createMatrix(vector<Point*> points);
 
   public:
     TSPSolver(string filename);
-
 };
 
 TSPSolver::TSPSolver(string filename) {
@@ -60,6 +61,7 @@ TSPSolver::TSPSolver(string filename) {
   ifs >> temp;
   dimension_ = atoi(temp.c_str());
   vector<Point*> points = loadPoints(filename, dimension_);
+  matrix_ = createMatrix(points);
   cout << dimension_ << endl;
 }
 
@@ -80,7 +82,24 @@ vector<Point*> TSPSolver::loadPoints(string filename, int dimension){
     Point* p = new Point((float)x, (float)y);
     points.push_back(p);
   }
+  return points;
+}
 
+float** TSPSolver::createMatrix(vector<Point*> points){
+  int dimension = points.size();
+  float** matrix = new float*[dimension];
+  for(int i = 0; i < dimension; ++i) {
+    matrix[i] = new float[dimension];
+  }
+  for(int i = 0; i < dimension; ++i) {
+    for(int j = i; j < dimension; ++j) {
+      float distance = points[i]->calcDistance(points[j]);
+      cout << distance << endl;
+      matrix[i][j] = distance;
+      matrix[j][i] = distance;
+    }
+  }
+  return matrix;
 }
 
 int main( int argc, char *argv[] ){
