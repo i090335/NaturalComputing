@@ -1,20 +1,10 @@
 #include <cmath>
-#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
-#include <ctime>
-#include "mt19937.c"
 
 using namespace std;
-
-class MersenneTwister {
- public:
-  ptrdiff_t operator()( ptrdiff_t arg ) const {
-    return static_cast< ptrdiff_t >( arg * static_cast< double >( genrand() ) );
-  }
-};
 
 class Point{
   private:
@@ -50,12 +40,10 @@ class TSPSolver{
     int** matrix_;
     vector<Point*> loadPoints(string filename, int dimension);
     int** createMatrix(vector<Point*> points);
-    vector<Point*> points_;
 
   public:
     TSPSolver(string filename);
     int calcAscendingCost(int begin);
-    int calcRandomCost();
     int getDimension();
 };
 
@@ -74,8 +62,9 @@ TSPSolver::TSPSolver(string filename) {
 
   ifs >> temp;
   dimension_ = atoi(temp.c_str());
-  points_ = loadPoints(filename, dimension_);
-  matrix_ = createMatrix(points_);
+  vector<Point*> points = loadPoints(filename, dimension_);
+  matrix_ = createMatrix(points);
+  cout << dimension_ << endl;
 }
 
 vector<Point*> TSPSolver::loadPoints(string filename, int dimension){
@@ -126,34 +115,12 @@ int TSPSolver::calcAscendingCost(int begin) {
   return sum;
 }
 
-int TSPSolver::calcRandomCost() {
-  vector<int> order;
-  for(int i = 0; i < dimension_; ++i) order.push_back(i);
-  MersenneTwister* mt = new MersenneTwister();
-  random_shuffle(order.begin(), order.end(), *mt);
-  delete mt;
-  int sum = 0;
-  Point* currentPoint;
-  Point* nextPoint;
-  for(int i = 0; i < dimension_; ++i) {
-    int p = order[i];
-    int next = order[(i + 1) % dimension_];
-    currentPoint = points_[p];
-    nextPoint = points_[next];
-    sum += currentPoint->calcDistance(nextPoint);
-  }
-  return sum;
-}
-
-
 int TSPSolver::getDimension() {
   return dimension_;
 }
 
 int main( int argc, char *argv[] ){
   FILE *fp;
-  sgenrand( static_cast<long>( time(NULL) ) );
-  int n;
 
   if( argc != 2 ){
     cout << "Usage: sample <input_filename>" << endl;
@@ -166,17 +133,11 @@ int main( int argc, char *argv[] ){
   }
   string* filename = new string(argv[1]);
   TSPSolver* solver = new TSPSolver(*filename);
-  cout << "N : " << endl;
-  cin >> n;
-  int min = INT_MAX;
-  for(int i = 0; i < n; ++i) {
-    int cost = solver->calcRandomCost();
-    if(cost < min) {
-      min = cost;
-    }
+  int d = solver->getDimension();
+  for(int i = 0; i < d; ++i) {
+    int cost = solver->calcAscendingCost(i);
+    cout << i << ", " << cost << endl;
   }
-  cout << min << endl;
-
   delete filename;
   delete solver;
   fclose( fp );
