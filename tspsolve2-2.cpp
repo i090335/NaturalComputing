@@ -52,7 +52,6 @@ class TSPSolver{
     vector<Point*> loadPoints(string filename, int dimension);
     int** createMatrix(vector<Point*> points);
     vector<Point*> points_;
-    int calcCost(vector<int> route);
 
   public:
     TSPSolver(string filename);
@@ -122,11 +121,6 @@ vector<Point*> TSPSolver::getPoints() {
 }
 
 int TSPSolver::calcAscendingCost(int begin) {
-  /*
-   * 開始点から全てのノードを順繰りに移動したときの総コストを返します。
-   * begin : 開始点
-   *
-   */
   int current = begin;
   int sum = 0;
   int next;
@@ -139,19 +133,24 @@ int TSPSolver::calcAscendingCost(int begin) {
 }
 
 vector<int> TSPSolver::calcMinimumRandomRoute(int max, int* minp) {
-  /*
-   * max回ランダムなルートを生成して、最小のルートを返します。
-   * minpには、最小ルートの総コストが渡されます。
-   *
-   */
-  vector<int> order;
-  for(int i = 0; i < dimension_; ++i) order.push_back(i);
   vector<int> *minRoute;
   MersenneTwister* mt = new MersenneTwister();
   int min = INT_MAX;
+  int cost = 0;
+  Point* currentPoint;
+  Point* nextPoint;
+  vector<int> order;
+  for(int i = 0; i < dimension_; ++i) order.push_back(i);
   for(int n = 0; n < max; ++n) {
+    cost = 0;
     random_shuffle(order.begin(), order.end(), *mt);
-    int cost = calcCost(order);
+    for(int i = 0; i < dimension_; ++i) {
+      int p = order.at(i);
+      int next = order.at((i + 1) % dimension_);
+      currentPoint = points_[p];
+      nextPoint = points_[next];
+      cost += currentPoint->calcDistance(nextPoint);
+    }
     if(cost < min) {
         min = cost;
         minRoute = &order;
@@ -162,85 +161,22 @@ vector<int> TSPSolver::calcMinimumRandomRoute(int max, int* minp) {
   return *minRoute;
 }
 
-int TSPSolver::calcCost(vector<int> route) {
-  /**
-   * 渡されたルートを順に移動したときの総コストを返します。
-   * route : 移動順のノード番号を含んだvector
-   *
-   */
-  int cost = 0;
-  int dimension = route.size();
-  Point* currentPoint;
-  Point* nextPoint;
-  for (int i = 0; i < dimension; ++i) {
-    int p = route.at(i);
-    int next = route.at((i + 1) % dimension);
-    currentPoint = points_[p];
-    nextPoint = points_[next];
-    cost += currentPoint->calcDistance(nextPoint);
-  }
-  return cost;
-}
 
 int TSPSolver::getDimension() {
   return dimension_;
 }
 
-enum neighborMode {
-  Random,
-  TwoOpt
-};
-
-class Mutation {
- protected:
-  TSPSolver* solver_;
- public:
-  Mutation(TSPSolver* solver);
-  virtual vector<int> mutate(vector<int> src) = 0;
-};
-
-Mutation::Mutation(TSPSolver* solver) {
-  solver_ = solver;
-}
-
-class RandomMutation : public Mutation{
- public:
-  virtual vector<int> mutate(vector<int> src) = 0;
-};
-
-vector<int> RandomMutation::mutate(vector<int> src) {
-  int size = src.size();
-  int from = (int)genrand()%size;
-  int to = (int)genrand()%size;
-  int tmp = src.at(from);
-  src[from] = src[to];
-  src[to] = tmp;
-  return src;
-}
-
-class TwoOptMutation : public Mutation {};
-
 int main( int argc, char *argv[] ){
   FILE *fp;
   sgenrand( static_cast<long>( time(NULL) ) );
   int n;
-  neighborMode mode;
-  if( argc <= 1 || argc >= 4 ){
+
+  if( argc != 2 ){
     cout << "Usage: sample <input_filename>" << endl;
     exit( 1 );
-  } else if(argc == 2) {
-    mode = Random;
-  } else if(argc == 3) {
-    string* modename = new string(argv[2]);
-    if (*modename == "twoopt") {
-      mode = TwoOpt;
-    } else {
-      mode = Random;
-    }
-    delete modename;
   }
 
-  if(( fp = fopen( argv[1], "r" )) == NULL ){
+  if(( fp=fopen( argv[1], "r" )) == NULL ){
     cout << "file open Error" << endl;
     exit( 1 );
   }
