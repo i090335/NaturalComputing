@@ -190,7 +190,11 @@ vector<int> TSPSolver::hillClimbing(int max, int* minp, neighborMode mode) {
   int cost = calcCost(minRoute);
   int neighborCost;
   for(int n = 0; n < max; ++n) {
-    neighbor = randomNeighbor(&minRoute);
+    if (mode == RandomNeighbor) {
+      neighbor = randomNeighbor(&minRoute);
+    } else {
+      neighbor = twooptNeighbor(&minRoute);
+    }
     neighborCost = calcCost(neighbor);
     if(neighborCost < cost) {
       minRoute = neighbor;
@@ -237,6 +241,21 @@ vector<int> TSPSolver::randomNeighbor(vector<int> *src) {
   return dst;
 }
 
+vector<int> TSPSolver::twooptNeighbor(vector<int> *src) {
+  vector<int> dst;
+  copy(src->begin(), src->end(), back_inserter(dst));
+  int size = src->size();
+  int f0 = (int)(genrand() * size);
+  int t0 = (f0 + 1)%size;
+  int f1 = (int)(genrand() * size);
+  int t1 = (f1 + 1)%size;
+  int tmp = dst[t0];
+  dst[t0] = dst[t1];
+  dst[t1] = tmp;
+  return dst;
+}
+
+
 int main( int argc, char *argv[] ){
   FILE *fp;
   sgenrand( static_cast<long>( time(NULL) ) );
@@ -273,7 +292,7 @@ int main( int argc, char *argv[] ){
   if (mode == RandomSolve) {
     minRoute = solver->calcMinimumRandomRoute(n, &min);
   } else if (mode == HillClimbing) {
-    minRoute = solver->hillClimbing(n, &min, RandomNeighbor);
+    minRoute = solver->hillClimbing(n, &min, TwoOptNeighbor);
   }
   ostringstream output;
   output << "random-" << n << ".dat";
