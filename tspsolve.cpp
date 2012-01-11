@@ -17,6 +17,16 @@ class MersenneTwister {
   }
 };
 
+enum solveMode {
+  RandomSolve,
+  HillClimbing
+};
+
+enum neighborMode {
+  RandomNeighbor,
+  TwoOptNeighbor
+};
+
 class Point{
   private:
     int x_;
@@ -53,6 +63,9 @@ class TSPSolver{
     int** createMatrix(vector<Point*> points);
     vector<Point*> points_;
     int calcCost(vector<int> route);
+    vector<int> generateRandomOrder();
+    vector<int> randomNeighbor(vector<int>* src);
+    vector<int> twooptNeighbor(vector<int>* src);
 
   public:
     TSPSolver(string filename);
@@ -60,6 +73,7 @@ class TSPSolver{
     int getDimension();
     vector<int> calcMinimumRandomRoute(int max, int* minp);
     vector<Point*> getPoints();
+    vector<int> hillClimbing(int max, int* minp, neighborMode mode);
 };
 
 TSPSolver::TSPSolver(string filename) {
@@ -144,11 +158,10 @@ vector<int> TSPSolver::calcMinimumRandomRoute(int max, int* minp) {
    * minpには、最小ルートの総コストが渡されます。
    *
    */
-  vector<int> order;
-  for(int i = 0; i < dimension_; ++i) order.push_back(i);
-  vector<int> *minRoute;
+  vector<int>* minRoute;
   MersenneTwister* mt = new MersenneTwister();
   int min = INT_MAX;
+  vector<int> order = generateRandomOrder();
   for(int n = 0; n < max; ++n) {
     random_shuffle(order.begin(), order.end(), *mt);
     int cost = calcCost(order);
@@ -160,6 +173,32 @@ vector<int> TSPSolver::calcMinimumRandomRoute(int max, int* minp) {
   delete mt;
   *minp = min;
   return *minRoute;
+}
+
+vector<int> TSPSolver::generateRandomOrder(){
+  vector<int> order;
+  for(int i = 0; i < dimension_; ++i) order.push_back(i);
+  MersenneTwister* mt = new MersenneTwister();
+  random_shuffle(order.begin(), order.end(), *mt);
+  delete mt;
+  return order;
+}
+
+vector<int> TSPSolver::hillClimbing(int max, int* minp, neighborMode mode) {
+  vector<int> minRoute = generateRandomOrder();
+  vector<int> neighbor;
+  int cost = calcCost(minRoute);
+  int neighborCost;
+  for(int n = 0; n < max; ++n) {
+    neighbor = randomNeighbor(&minRoute);
+    neighborCost = calcCost(neighbor);
+    if(neighborCost < cost) {
+      minRoute = neighbor;
+      cost = neighborCost;
+    }
+  }
+  *minp = cost;
+  return minRoute;
 }
 
 int TSPSolver::calcCost(vector<int> route) {
@@ -186,56 +225,37 @@ int TSPSolver::getDimension() {
   return dimension_;
 }
 
-enum neighborMode {
-  Random,
-  TwoOpt
-};
-
-class Mutation {
- protected:
-  TSPSolver* solver_;
- public:
-  Mutation(TSPSolver* solver);
-  virtual vector<int> mutate(vector<int> src) = 0;
-};
-
-Mutation::Mutation(TSPSolver* solver) {
-  solver_ = solver;
+vector<int> TSPSolver::randomNeighbor(vector<int> *src) {
+  vector<int> dst;
+  copy(src->begin(), src->end(), back_inserter(dst));
+  int size = src->size();
+  int from = (int)(genrand() * size);
+  int to = (int)(genrand() * size);
+  int tmp = src->at(from);
+  dst[from] = src->at(to);
+  dst[to] = tmp;
+  return dst;
 }
-
-class RandomMutation : public Mutation{
- public:
-  virtual vector<int> mutate(vector<int> src) = 0;
-};
-
-vector<int> RandomMutation::mutate(vector<int> src) {
-  int size = src.size();
-  int from = (int)genrand()%size;
-  int to = (int)genrand()%size;
-  int tmp = src.at(from);
-  src[from] = src[to];
-  src[to] = tmp;
-  return src;
-}
-
-class TwoOptMutation : public Mutation {};
 
 int main( int argc, char *argv[] ){
   FILE *fp;
   sgenrand( static_cast<long>( time(NULL) ) );
   int n;
-  neighborMode mode;
+  solveMode mode;
   if( argc <= 1 || argc >= 4 ){
     cout << "Usage: sample <input_filename>" << endl;
     exit( 1 );
   } else if(argc == 2) {
-    mode = Random;
+    mode = RandomSolve;
   } else if(argc == 3) {
     string* modename = new string(argv[2]);
-    if (*modename == "twoopt") {
-      mode = TwoOpt;
+    if (*modename == "random") {
+      mode = RandomSolve;
+    } else if(*modename == "hill-climbing"){
+      mode = HillClimbing;
     } else {
-      mode = Random;
+      cout << "Invalid mode name " << *modename << "." << endl;
+      exit( 1 );
     }
     delete modename;
   }
@@ -249,7 +269,12 @@ int main( int argc, char *argv[] ){
   cout << "N : " << endl;
   cin >> n;
   int min;
-  vector<int> minRoute = solver->calcMinimumRandomRoute(n, &min);
+  vector<int> minRoute;
+  if (mode == RandomSolve) {
+    minRoute = solver->calcMinimumRandomRoute(n, &min);
+  } else if (mode == HillClimbing) {
+    minRoute = solver->hillClimbing(n, &min, RandomNeighbor);
+  }
   ostringstream output;
   output << "random-" << n << ".dat";
   ofstream ofs(output.str().c_str());
